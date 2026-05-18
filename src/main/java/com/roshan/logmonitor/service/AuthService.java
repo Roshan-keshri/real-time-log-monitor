@@ -23,30 +23,25 @@ public class AuthService {
     private final CompanyRepository companyRepository;
     private final PasswordEncoder passwordEncoder;
 
-    // We brought these back for the Login process!
     private final AuthenticationManager authenticationManager;
     private final JwtUtil jwtUtil;
 
-    // 1. REGISTRATION (With Security Enhancement)
     public String register(RegisterRequest request) {
         if (userRepository.findByUsername(request.getUsername()).isPresent()) {
             throw new RuntimeException("User already exists");
         }
 
-        // Check if the company already exists
         boolean isNewCompany = false;
         Company company = companyRepository.findByName(request.getCompanyName()).orElse(null);
 
-        // If it doesn't exist, create it!
         if (company == null) {
             company = new Company();
             company.setName(request.getCompanyName());
             company.setApiKey("log_" + UUID.randomUUID().toString().replace("-", ""));
             company = companyRepository.save(company);
-            isNewCompany = true; // Mark that we just created this!
+            isNewCompany = true;
         }
 
-        // Create the Human User and link them to the Company
         User user = new User();
         user.setUsername(request.getUsername());
         user.setPassword(passwordEncoder.encode(request.getPassword()));
@@ -55,7 +50,6 @@ public class AuthService {
 
         userRepository.save(user);
 
-        // Return a different message depending on whether they are the Admin or a Teammate!
         if (isNewCompany) {
             return "Registration successful! You created a new company. Your API Key is: " + company.getApiKey();
         } else {
@@ -63,14 +57,12 @@ public class AuthService {
         }
     }
 
-    // 2. LOGIN (We brought this back!)
     public String login(LoginRequest request) {
         // This checks if the password matches the database
         authenticationManager.authenticate(
                 new UsernamePasswordAuthenticationToken(request.getUsername(), request.getPassword())
         );
 
-        // If password is correct, generate the JWT token
         return jwtUtil.generateToken(request.getUsername());
     }
 }

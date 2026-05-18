@@ -34,18 +34,15 @@ public class LogService {
     private final AlertRepository alertRepository;
     private final SimpMessagingTemplate messagingTemplate;
 
-    // Helper method to figure out exactly which Company this request belongs to
-    private Company getCurrentCompany() {
+    public Company getCurrentCompany() {
         Authentication auth = SecurityContextHolder.getContext().getAuthentication();
         String nametag = auth.getName();
 
         if (nametag.startsWith("API_KEY_")) {
-            // It's a Machine! Extract the ID and find the company directly.
             Long companyId = Long.parseLong(nametag.replace("API_KEY_", ""));
             return companyRepository.findById(companyId)
                     .orElseThrow(() -> new RuntimeException("Company not found"));
         } else {
-            // It's a Human! Find the User, then get their Company.
             User user = userRepository.findByUsername(nametag)
                     .orElseThrow(() -> new RuntimeException("User not found"));
             return user.getCompany();
@@ -53,7 +50,9 @@ public class LogService {
     }
 
     public LogEntry saveLog(LogRequest request) {
-        Company company = getCurrentCompany(); // From API Key
+        // Fetch the company using the ID passed through Kafka!
+        Company company = companyRepository.findById(request.getCompanyId())
+                .orElseThrow(() -> new RuntimeException("Company not found"));
 
         LogEntry logEntry = new LogEntry();
         logEntry.setLevel(request.getLevel());
@@ -64,17 +63,10 @@ public class LogService {
 
         LogEntry savedLog = logRepository.save(logEntry);
 
-        // 🔥 THE ALERT ENGINE 🔥
-        // Only check if this incoming log is an ERROR
         if ("ERROR".equalsIgnoreCase(savedLog.getLevel())) {
-
-            // Look back 1 minute ago
             LocalDateTime oneMinuteAgo = LocalDateTime.now().minusMinutes(1);
-
-            // Count how many errors happened in the last minute
             long errorCount = logRepository.countRecentErrors(company, oneMinuteAgo);
 
-            // THRESHOLD: If there are 3 or more errors in 1 minute, TRIGGER ALERT!
             if (errorCount >= 3) {
                 triggerAlert(company, errorCount);
             }
@@ -84,14 +76,12 @@ public class LogService {
     }
 
     private void triggerAlert(Company company, long errorCount) {
-        // 1. Save Alert to Database
         Alert alert = new Alert();
         alert.setCompany(company);
         alert.setTimestamp(LocalDateTime.now());
         alert.setMessage("🚨 CRITICAL ALERT: " + errorCount + " errors detected in the last minute!");
         alertRepository.save(alert);
 
-        // 2. Broadcast the Alert over WebSockets instantly!
         String alertTopic = "/topic/company/" + company.getId() + "/alerts";
         messagingTemplate.convertAndSend(alertTopic, alert);
 
@@ -100,14 +90,8 @@ public class LogService {
 
     public Page<LogEntry> searchLogs(String level, String keyword, String serviceName, LocalDateTime start, LocalDateTime end, int page, int size) {
         Company company = getCurrentCompany();
-
-        // 1. Setup Pagination & Sorting
         Pageable pageable = PageRequest.of(page, size, Sort.by("timestamp").descending());
-
-        // 2. Build the Dynamic Query
         Specification<LogEntry> spec = LogSpecification.buildQuery(company, level, serviceName, keyword, start, end);
-
-        // 3. Execute!
         return logRepository.findAll(spec, pageable);
     }
 }

@@ -8,7 +8,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 @RestController
-@RequestMapping("/auth") // Change to /api/auth if you used that in your SecurityConfig
+@RequestMapping("/auth")
 @RequiredArgsConstructor
 public class AuthController {
 
@@ -19,7 +19,6 @@ public class AuthController {
         return ResponseEntity.ok(authService.register(request));
     }
 
-    // NEW: The Login Endpoint
     @PostMapping("/login")
     public ResponseEntity<String> login(@RequestBody LoginRequest request) {
         return ResponseEntity.ok(authService.login(request));

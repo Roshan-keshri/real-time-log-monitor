@@ -22,7 +22,7 @@ import java.util.Optional;
 @RequiredArgsConstructor
 public class ApiKeyFilter extends OncePerRequestFilter {
 
-    private final CompanyRepository companyRepository; // <-- Use CompanyRepository now!
+    private final CompanyRepository companyRepository;
 
     @Override
     protected void doFilterInternal(
@@ -38,7 +38,6 @@ public class ApiKeyFilter extends OncePerRequestFilter {
             return;
         }
 
-        // Find the COMPANY by the API Key
         Optional<Company> companyOptional = companyRepository.findByApiKey(apiKey);
 
         if (companyOptional.isPresent()) {
@@ -46,7 +45,7 @@ public class ApiKeyFilter extends OncePerRequestFilter {
 
             // Put a special nametag on this request so the Service knows it's a machine!
             UsernamePasswordAuthenticationToken authToken = new UsernamePasswordAuthenticationToken(
-                    "API_KEY_" + company.getId(), // e.g., "API_KEY_1"
+                    "API_KEY_" + company.getId(),
                     null,
                     Collections.singletonList(new SimpleGrantedAuthority("ROLE_MACHINE"))
             );

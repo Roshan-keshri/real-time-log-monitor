@@ -12,15 +12,13 @@ public class WebSocketConfig implements WebSocketMessageBrokerConfigurer {
 
     @Override
     public void registerStompEndpoints(StompEndpointRegistry registry) {
-        // This is the URL the frontend will connect to
         registry.addEndpoint("/ws-logs")
                 .setAllowedOriginPatterns("*")
-                .withSockJS(); // Fallback for older browsers
+                .withSockJS();
     }
 
     @Override
     public void configureMessageBroker(MessageBrokerRegistry registry) {
-        // This is the prefix for the "channels" people can subscribe to
         registry.enableSimpleBroker("/topic");
         registry.setApplicationDestinationPrefixes("/app");
     }

@@ -14,7 +14,7 @@ import java.util.function.Function;
 public class JwtUtil {
 
     // Using a fixed Base64 encoded key so your tokens survive server restarts!
-    private static final String SECRET = "REPLACE_THIS_WITH_A_SECURE_KEY_LATER_123456789";
+    private static final String SECRET = System.getenv("JWT_SECRET");
     private static final Key SECRET_KEY = Keys.hmacShaKeyFor(io.jsonwebtoken.io.Decoders.BASE64.decode(SECRET));
 
     private static final long JWT_EXPIRATION = 1000 * 60 * 60 * 10; // 10 hours

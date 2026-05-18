@@ -1,13 +1,14 @@
 package com.roshan.logmonitor.controller;
 
 import com.roshan.logmonitor.dto.log.LogRequest;
+import com.roshan.logmonitor.entity.Company; // Added this import
 import com.roshan.logmonitor.entity.LogEntry;
+import com.roshan.logmonitor.kafka.LogProducer;
 import com.roshan.logmonitor.service.LogService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.http.ResponseEntity;
-import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.web.bind.annotation.*;
 
 import java.time.LocalDateTime;
@@ -18,28 +19,23 @@ import java.time.LocalDateTime;
 public class LogController {
 
     private final LogService logService;
+    private final LogProducer logProducer;
 
-    // 1. Inject the WebSocket Messaging Template
-    private final SimpMessagingTemplate messagingTemplate;
-
-    // 1. INGESTION ENDPOINT (Now using the secure LogRequest DTO!)
-    // POST http://localhost:8080/api/logs
     @PostMapping
-    public ResponseEntity<LogEntry> ingestLog(@RequestBody LogRequest request) {
-        // Save the log to the database
-        LogEntry savedLog = logService.saveLog(request);
+    public ResponseEntity<String> ingestLog(@RequestBody LogRequest request) {
+        // 1. Grab the company while we still have the HTTP Security Context!
+        Company company = logService.getCurrentCompany();
 
-        // 2. THE MAGIC: Broadcast this log to this specific company's secure channel!
-        if (savedLog.getCompany() != null) {
-            String topic = "/topic/company/" + savedLog.getCompany().getId() + "/logs";
-            messagingTemplate.convertAndSend(topic, savedLog);
-        }
+        // 2. Attach the ID to the request object so Kafka can carry it to the background thread
+        request.setCompanyId(company.getId());
 
-        return ResponseEntity.ok(savedLog);
+        // 3. Send to Kafka instantly
+        logProducer.sendLog(request);
+
+        // 4. Return 202 Accepted immediately!
+        return ResponseEntity.accepted().body("Log received and queued successfully!");
     }
 
-    // 2. SEARCH & FILTER ENDPOINT
-    // GET http://localhost:8080/api/logs?level=ERROR&keyword=database
     @GetMapping
     public ResponseEntity<Page<LogEntry>> getLogs(
             @RequestParam(required = false) String level,

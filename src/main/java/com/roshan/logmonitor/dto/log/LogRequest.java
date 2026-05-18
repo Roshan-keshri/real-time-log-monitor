@@ -7,4 +7,5 @@ public class LogRequest {
     private String level;
     private String serviceName;
     private String message;
+    private Long companyId; // Added this to pass through Kafka!
 }
